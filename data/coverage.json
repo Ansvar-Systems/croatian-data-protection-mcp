@@ -1,0 +1,22 @@
+{
+  "jurisdiction": "HR",
+  "authority": "AZOP — Agencija za zaštitu osobnih podataka",
+  "authority_url": "https://azop.hr/",
+  "type": "national_dpa",
+  "languages": ["hr", "en"],
+  "decision_types": ["kazna", "upozorenje", "rješenje", "mišljenje"],
+  "guideline_types": ["smjernica", "mišljenje", "preporuka", "vodič"],
+  "topics": [
+    { "id": "consent", "name_local": "Privola", "name_en": "Consent" },
+    { "id": "cookies", "name_local": "Kolačići", "name_en": "Cookies" },
+    { "id": "transfers", "name_local": "Prijenos podataka", "name_en": "International data transfers" },
+    { "id": "dpia", "name_local": "Procjena učinka", "name_en": "Data Protection Impact Assessment (DPIA)" },
+    { "id": "breach_notification", "name_local": "Prijava povreda", "name_en": "Breach notification" },
+    { "id": "privacy_by_design", "name_local": "Privatnost u dizajnu", "name_en": "Privacy by design" },
+    { "id": "video_surveillance", "name_local": "Videonadzor", "name_en": "Video surveillance" },
+    { "id": "health_data", "name_local": "Zdravstveni podaci", "name_en": "Health data" },
+    { "id": "children", "name_local": "Djeca", "name_en": "Children's data" }
+  ],
+  "license": "Public domain (official regulatory publications)",
+  "notes": "Coverage may be incomplete. Verify all references against primary sources at azop.hr."
+}
