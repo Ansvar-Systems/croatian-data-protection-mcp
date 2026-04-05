@@ -29,6 +29,8 @@ import {
   searchGuidelines,
   getGuideline,
   listTopics,
+  listSources,
+  checkDataFreshness,
 } from "./db.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -53,17 +55,17 @@ const TOOLS = [
   {
     name: "hr_dp_search_decisions",
     description:
-      "Full-text search across CNIL decisions (deliberations, sanctions, mises en demeure). Returns matching decisions with reference, entity name, fine amount, and GDPR articles cited.",
+      "Full-text search across AZOP decisions (rješenja, kazne, upozorenja). Returns matching decisions with reference, entity name, fine amount, and GDPR articles cited.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        query: { type: "string", description: "Search query (e.g., 'consentement cookies', 'Google')" },
+        query: { type: "string", description: "Search query (e.g., 'privola kolačići', 'telekomunikacije', 'povreda podataka')" },
         type: {
           type: "string",
           enum: ["kazna", "upozorenje", "rješenje", "mišljenje"],
           description: "Filter by decision type. Optional.",
         },
-        topic: { type: "string", description: "Filter by topic ID. Optional." },
+        topic: { type: "string", description: "Filter by topic ID (e.g., 'consent', 'cookies', 'transfers'). Optional." },
         limit: { type: "number", description: "Max results (default 20)." },
       },
       required: ["query"],
@@ -72,11 +74,11 @@ const TOOLS = [
   {
     name: "hr_dp_get_decision",
     description:
-      "Get a specific CNIL decision by reference number (e.g., 'SAN-2022-009').",
+      "Get a specific AZOP decision by reference number (e.g., 'AZOP-2021-1234', 'UP/I-034-04/21-01/123').",
     inputSchema: {
       type: "object" as const,
       properties: {
-        reference: { type: "string", description: "CNIL decision reference (e.g., 'SAN-2022-009')" },
+        reference: { type: "string", description: "AZOP decision reference (e.g., 'AZOP-2021-1234', 'UP/I-034-04/21-01/123')" },
       },
       required: ["reference"],
     },
@@ -84,17 +86,17 @@ const TOOLS = [
   {
     name: "hr_dp_search_guidelines",
     description:
-      "Search CNIL guidance documents: guides, recommandations, referentiels, and FAQs.",
+      "Search AZOP guidance documents: smjernice, mišljenja, and preporuke. Covers GDPR implementation, procjena učinka na zaštitu podataka (DPIA), cookie consent, video surveillance, and more.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        query: { type: "string", description: "Search query" },
+        query: { type: "string", description: "Search query (e.g., 'procjena učinka', 'kolačići privola', 'videonadzor')" },
         type: {
           type: "string",
           enum: ["smjernica", "mišljenje", "preporuka", "vodič"],
           description: "Filter by guidance type. Optional.",
         },
-        topic: { type: "string", description: "Filter by topic ID. Optional." },
+        topic: { type: "string", description: "Filter by topic ID (e.g., 'dpia', 'cookies', 'breach_notification'). Optional." },
         limit: { type: "number", description: "Max results (default 20)." },
       },
       required: ["query"],
@@ -102,18 +104,28 @@ const TOOLS = [
   },
   {
     name: "hr_dp_get_guideline",
-    description: "Get a specific CNIL guidance document by its database ID.",
+    description: "Get a specific AZOP guidance document by its database ID.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        id: { type: "number", description: "Guideline database ID" },
+        id: { type: "number", description: "Guideline database ID (from hr_dp_search_guidelines results)" },
       },
       required: ["id"],
     },
   },
   {
     name: "hr_dp_list_topics",
-    description: "List all covered data protection topics with French and English names.",
+    description: "List all covered data protection topics with Croatian and English names. Use topic IDs to filter decisions and guidelines.",
+    inputSchema: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "hr_dp_list_sources",
+    description: "List all data sources used by this server with provenance metadata: authority name, URL, jurisdiction, license, and coverage scope.",
+    inputSchema: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "hr_dp_check_data_freshness",
+    description: "Check data freshness for each source. Reports record counts, latest dates, and staleness status. Use before relying on results to verify data currency.",
     inputSchema: { type: "object" as const, properties: {}, required: [] },
   },
   {
@@ -162,9 +174,21 @@ function createMcpServer(): Server {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args = {} } = request.params;
 
-    function textContent(data: unknown) {
+    function meta() {
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+        server: SERVER_NAME,
+        version: pkgVersion,
+        generated_at: new Date().toISOString(),
+      };
+    }
+
+    function textContent(data: unknown) {
+      const payload =
+        typeof data === "object" && data !== null
+          ? { ...(data as Record<string, unknown>), _meta: meta() }
+          : { data, _meta: meta() };
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
       };
     }
 
@@ -222,13 +246,28 @@ function createMcpServer(): Server {
           return textContent({ topics, count: topics.length });
         }
 
+        case "hr_dp_list_sources": {
+          const sources = listSources();
+          return textContent({ sources, count: sources.length });
+        }
+
+        case "hr_dp_check_data_freshness": {
+          const freshness = checkDataFreshness();
+          return textContent({ sources: freshness });
+        }
+
         case "hr_dp_about": {
           return textContent({
             name: SERVER_NAME,
             version: pkgVersion,
             description:
-              "AZOP (Agencija za zaštitu osobnih podataka) MCP server. Provides access to French data protection authority decisions, sanctions, mises en demeure, and official guidance documents.",
+              "AZOP (Agencija za zaštitu osobnih podataka) MCP server. Provides access to Croatian data protection authority decisions, sanctions, upozorenja, and official guidance documents.",
             data_source: "AZOP (https://azop.hr/)",
+            coverage: {
+              decisions: "AZOP rješenja, kazne, and upozorenja",
+              guidelines: "AZOP smjernice, mišljenja, and preporuke",
+              topics: "Consent (privola), cookies (kolačići), transfers, DPIA (procjena učinka), breach notification, privacy by design, video surveillance (videonadzor), health data, children",
+            },
             tools: TOOLS.map((t) => ({ name: t.name, description: t.description })),
           });
         }
