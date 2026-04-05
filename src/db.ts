@@ -261,3 +261,79 @@ export function listTopics(): Topic[] {
     .prepare("SELECT * FROM topics ORDER BY id")
     .all() as Topic[];
 }
+
+// --- Source metadata ----------------------------------------------------------
+
+export interface SourceInfo {
+  id: string;
+  name: string;
+  authority: string;
+  url: string;
+  jurisdiction: string;
+  type: string;
+  license: string;
+  scope: string;
+  languages: string[];
+}
+
+export interface SourceFreshness {
+  source_id: string;
+  decisions_count: number;
+  guidelines_count: number;
+  topics_count: number;
+  latest_decision_date: string | null;
+  latest_guideline_date: string | null;
+  status: "ok" | "empty";
+}
+
+const SOURCES: SourceInfo[] = [
+  {
+    id: "azop",
+    name: "AZOP — Agencija za zaštitu osobnih podataka",
+    authority: "Croatian Personal Data Protection Agency",
+    url: "https://azop.hr/",
+    jurisdiction: "HR",
+    type: "national_dpa",
+    license: "Public domain (official regulatory publications)",
+    scope: "Decisions (rješenja, kazne, upozorenja) and guidance (smjernice, mišljenja, preporuke)",
+    languages: ["hr", "en"],
+  },
+];
+
+export function listSources(): SourceInfo[] {
+  return SOURCES;
+}
+
+export function checkDataFreshness(): SourceFreshness[] {
+  const db = getDb();
+  const decisionsCount = (
+    db.prepare("SELECT COUNT(*) as n FROM decisions").get() as { n: number }
+  ).n;
+  const guidelinesCount = (
+    db.prepare("SELECT COUNT(*) as n FROM guidelines").get() as { n: number }
+  ).n;
+  const topicsCount = (
+    db.prepare("SELECT COUNT(*) as n FROM topics").get() as { n: number }
+  ).n;
+  const latestDecision = (
+    db.prepare("SELECT MAX(date) as d FROM decisions").get() as { d: string | null }
+  ).d;
+  const latestGuideline = (
+    db.prepare("SELECT MAX(date) as d FROM guidelines").get() as { d: string | null }
+  ).d;
+
+  const status: "ok" | "empty" =
+    decisionsCount === 0 && guidelinesCount === 0 ? "empty" : "ok";
+
+  return [
+    {
+      source_id: "azop",
+      decisions_count: decisionsCount,
+      guidelines_count: guidelinesCount,
+      topics_count: topicsCount,
+      latest_decision_date: latestDecision,
+      latest_guideline_date: latestGuideline,
+      status,
+    },
+  ];
+}
