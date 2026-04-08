@@ -90,18 +90,20 @@ npx @ansvar/croatian-data-protection-mcp
 
 ---
 
-## Available Tools (6)
+## Available Tools (8)
 
 | Tool | Description |
 |------|-------------|
-| `hr_dp_search_decisions` | Full-text search across AZOP decisions (rješenja, kazne, upozorenja). Returns matching decisions with reference, enti... |
-| `hr_dp_get_decision` | Get a specific AZOP decision by reference number (e.g., |
-| `hr_dp_search_guidelines` | Search AZOP guidance documents: smjernice, mišljenja, and preporuke. Covers GDPR implementation, procjena učinka na z... |
+| `hr_dp_search_decisions` | Full-text search across AZOP decisions (rješenja, kazne, upozorenja). Returns matching decisions with reference, entity name, fine amount, and GDPR articles cited. |
+| `hr_dp_get_decision` | Get a specific AZOP decision by reference number (e.g., `AZOP-2021-1234`, `UP/I-034-04/21-01/123`). |
+| `hr_dp_search_guidelines` | Search AZOP guidance documents: smjernice, mišljenja, and preporuke. Covers GDPR implementation, DPIA, cookie consent, video surveillance, and more. |
 | `hr_dp_get_guideline` | Get a specific AZOP guidance document by its database ID. |
-| `hr_dp_list_topics` | List all covered data protection topics with Croatian and English names. Use topic IDs to filter decisions and guidel... |
+| `hr_dp_list_topics` | List all covered data protection topics with Croatian and English names. Use topic IDs to filter decisions and guidelines. |
+| `hr_dp_list_sources` | List all data sources with provenance metadata: authority, URL, jurisdiction, license, and scope. |
+| `hr_dp_check_data_freshness` | Check data freshness: record counts, latest dates, and staleness status per source. |
 | `hr_dp_about` | Return metadata about this MCP server: version, data source, coverage, and tool list. |
 
-All tools return structured data with source references and timestamps.
+All tools return structured data with a `_meta` block (server, version, generated_at). See [TOOLS.md](TOOLS.md) for full parameter reference.
 
 ---
 
@@ -117,7 +119,7 @@ All content is sourced from official Croatian regulatory publications:
 - Freshness checks run via GitHub Actions workflows
 - Last-updated timestamps in tool responses indicate data age
 
-See `sources.yml` for full provenance metadata.
+See [COVERAGE.md](COVERAGE.md) for full provenance metadata and topic coverage.
 
 ---
 
@@ -180,8 +182,8 @@ npx @anthropic/mcp-inspector node dist/index.js   # Test with MCP Inspector
 ### Data Management
 
 ```bash
-npm run build:db       # Rebuild SQLite database from seed data
-npm run check-updates  # Check for new regulatory data
+npm run seed    # Seed database with sample data
+npm run ingest  # Ingest latest data from AZOP
 ```
 
 ---
@@ -218,7 +220,7 @@ Apache License 2.0. See [LICENSE](./LICENSE) for details.
 
 ### Data Licenses
 
-Regulatory data sourced from official government publications. See `sources.yml` for per-source licensing details.
+Regulatory data sourced from official government publications. See [COVERAGE.md](COVERAGE.md) and [data/coverage.json](data/coverage.json) for per-source licensing details.
 
 ---
 

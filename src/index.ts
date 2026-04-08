@@ -25,6 +25,8 @@ import {
   searchGuidelines,
   getGuideline,
   listTopics,
+  listSources,
+  checkDataFreshness,
 } from "./db.js";
 import { buildCitation } from "./citation.js";
 
@@ -143,6 +145,26 @@ const TOOLS = [
     },
   },
   {
+    name: "hr_dp_list_sources",
+    description:
+      "List all data sources used by this server with provenance metadata: authority name, URL, jurisdiction, license, and coverage scope.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "hr_dp_check_data_freshness",
+    description:
+      "Check data freshness for each source. Reports record counts, latest dates, and staleness status. Use before relying on results to verify data currency.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: "hr_dp_about",
     description: "Return metadata about this MCP server: version, data source, coverage, and tool list.",
     inputSchema: {
@@ -179,10 +201,22 @@ const GetGuidelineArgs = z.object({
 
 // --- Helper ------------------------------------------------------------------
 
+function meta() {
+  return {
+    server: SERVER_NAME,
+    version: pkgVersion,
+    generated_at: new Date().toISOString(),
+  };
+}
+
 function textContent(data: unknown) {
+  const payload =
+    typeof data === "object" && data !== null
+      ? { ...(data as Record<string, unknown>), _meta: meta() }
+      : { data, _meta: meta() };
   return {
     content: [
-      { type: "text" as const, text: JSON.stringify(data, null, 2) },
+      { type: "text" as const, text: JSON.stringify(payload, null, 2) },
     ],
   };
 }
@@ -271,6 +305,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "hr_dp_list_topics": {
         const topics = listTopics();
         return textContent({ topics, count: topics.length });
+      }
+
+      case "hr_dp_list_sources": {
+        const sources = listSources();
+        return textContent({ sources, count: sources.length });
+      }
+
+      case "hr_dp_check_data_freshness": {
+        const freshness = checkDataFreshness();
+        return textContent({ sources: freshness });
       }
 
       case "hr_dp_about": {
