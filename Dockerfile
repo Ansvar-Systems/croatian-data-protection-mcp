@@ -8,12 +8,19 @@
 # Override with AZOP_DB_PATH for a custom location.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# --- Stage 1: Build TypeScript ---
+# --- Stage 1: Build TypeScript + native modules ---
 FROM node:20-slim AS builder
 
 WORKDIR /app
+
+# Build deps for better-sqlite3 native binding (postinstall)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json* ./
-RUN npm ci --ignore-scripts
+# Full install — allows postinstall to build native bindings
+RUN npm ci
 COPY tsconfig.json ./
 COPY src/ src/
 RUN npm run build
@@ -25,10 +32,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV AZOP_DB_PATH=/app/data/azop.db
 
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
-
+# Reuse builder's node_modules (preserves built native bindings)
+COPY --from=builder /app/node_modules/ node_modules/
 COPY --from=builder /app/dist/ dist/
+COPY package.json package-lock.json* ./
+
+# Database: workflow provisions data/database.db; Dockerfile renames to azop.db at COPY time
+COPY data/database.db data/azop.db
 
 # Non-root user for security
 RUN addgroup --system --gid 1001 mcp && \
